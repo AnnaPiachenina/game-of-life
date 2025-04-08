@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Game of Life</title>
+  <style>
+    body {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        background-color: #aacc0039;
+        margin-top: 2em;
+    }
+    h1 {
+        font-family:'Gill Sans', 'Gill Sans MT', Calibri, 'Trebuchet MS', sans-serif;
+        font-size: 60px;
+        margin: 0;
+        color: #ff6287d8;
+        letter-spacing: -2px;
+        -webkit-text-stroke: 3px #da2d55e4;
+    }
+    
+    .button-container {
+        display: flex;
+    }
+    button {
+        width: 5em;
+        height: 2em;
+        font-family: 'Gill Sans', 'Gill Sans MT', Calibri, 'Trebuchet MS', sans-serif;
+        text-decoration: none;
+        margin: 0.5em;
+        font-size: 25px;
+        background-color: #fcdaae;
+        border: 3px solid #ff9252;
+        color: #ff612c;
+        border-radius: 10px;
+    }
+    .canvas-style {
+        background-color: #b9e9e5cd;
+        padding: 1em;
+        margin-top: 1em;
+        border: 5px solid #17c3b2;
+        border-radius: 20px;
+    }
+
+  </style>
+</head>
+<body>
+    <h1>Game of life!</h1>
+    <canvas id="gameCanvas" width="400" height="400" class="canvas-style"></canvas>
+    <div class="button-container" >
+        <button onclick="start()">Start</button>
+        <button onclick="stop()">Stop</button>
+        <button onclick="reset()">Reset</button>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        const numRows = 60;
+        const numCols = 60;
+        const cellSize = 8;
+        const worker = new Worker('worker.js');
+
+        let isRunning = false;
+        let generation = 0;
+
+        function initGrid() {
+        const grid = new Array(numRows).fill(null)
+            .map(() => new Array(numCols).fill(false));
+
+        return grid.map(row => row.map(() => Math.random() > 0.7));
+        }
+
+        let currentGrid = initGrid();
+
+        function drawGrid() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        for (let i = 0; i < numRows; i++) {
+            for (let j = 0; j < numCols; j++) {
+            if (currentGrid[i][j]) {
+                ctx.fillStyle = getRandomColor();
+                ctx.fillRect(j * cellSize, i * cellSize, cellSize, cellSize);
+            }
+            }
+        }
+        }
+
+        function getRandomColor() {
+            const letters = '0123456789ABCDEF';
+            let color = '#';
+            for (let i = 0; i < 6; i++) {
+              color += letters[Math.floor(Math.random() * 16)];
+            }
+            return color;
+        }
+
+        function updateGrid(newGrid) {
+        currentGrid = newGrid;
+        drawGrid();
+        document.getElementById('generation').innerText = `Generation: ${generation++}`;
+        }
+
+        function start() {
+        if (!isRunning) {
+            isRunning = true;
+            worker.postMessage({ type: 'start', grid: currentGrid });
+        }
+        }
+
+        function stop() {
+        if (isRunning) {
+            isRunning = false;
+            worker.postMessage({ type: 'stop' });
+        }
+        }
+
+        function reset() {
+        stop();
+        currentGrid = initGrid();
+        generation = 0;
+        drawGrid();
+        }
+
+        worker.onmessage = (event) => {
+        if (event.data.type === 'update') {
+            updateGrid(event.data.grid);
+        }
+        };
+
+        drawGrid();
+    </script>
+    <script src="worker.js"></script>
+</body>
+</html>
