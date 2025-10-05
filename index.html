@@ -49,10 +49,19 @@
 <body>
     <h1>Game of life!</h1>
     <canvas id="gameCanvas" width="400" height="400" class="canvas-style"></canvas>
+    <div id="generation" style="margin-top: 0.5em; font-family: Calibri, sans-serif; color: #333;">Generation: 0</div>
     <div class="button-container" >
         <button onclick="start()">Start</button>
         <button onclick="stop()">Stop</button>
         <button onclick="reset()">Reset</button>
+    </div>
+
+    <div style="margin-top: 1em; font-family: Calibri, sans-serif; color: #333;">
+        <label style="cursor: pointer;">
+            <input type="checkbox" id="restrictedCheckbox" />
+            Restricted control (Region 08 users only)
+        </label>
+        <div id="checkboxInfo" style="font-size: 0.9em; color: #555; margin-top: 0.25em;"></div>
     </div>
 
     <script>
@@ -66,6 +75,46 @@
 
         let isRunning = false;
         let generation = 0;
+
+        const AUTH_REGION_CODE = '08';
+
+        function getCurrentUser() {
+            const globalUser = (window.currentUser && typeof window.currentUser === 'object') ? window.currentUser : {};
+            const params = new URLSearchParams(window.location.search);
+
+            const loggedInFromGlobal = globalUser.isLoggedIn ?? globalUser.loggedIn ?? globalUser.authenticated;
+            const regionFromGlobal = globalUser.regionCode ?? globalUser.region;
+
+            const loggedInFromParams = (() => {
+                const v = params.get('loggedIn');
+                if (v === null) return undefined;
+                return v === '1' || v === 'true';
+            })();
+            const regionFromParams = params.get('region') ?? undefined;
+
+            const isLoggedIn = Boolean(loggedInFromGlobal !== undefined ? loggedInFromGlobal : (loggedInFromParams ?? false));
+            const regionRaw = (regionFromGlobal !== undefined ? String(regionFromGlobal) : String(regionFromParams ?? ''));
+            const regionCode = regionRaw ? regionRaw.padStart(2, '0') : '';
+
+            return { isLoggedIn, regionCode };
+        }
+
+        function isAuthorizedToControlCheckbox() {
+            const user = getCurrentUser();
+            return user.isLoggedIn && user.regionCode === AUTH_REGION_CODE;
+        }
+
+        function initRestrictedCheckbox() {
+            const checkbox = document.getElementById('restrictedCheckbox');
+            const info = document.getElementById('checkboxInfo');
+            if (!checkbox || !info) return;
+
+            const authorized = isAuthorizedToControlCheckbox();
+            checkbox.disabled = !authorized;
+            info.textContent = authorized
+                ? 'You are authorized to control this checkbox.'
+                : 'You must be logged in and in region 08 to change this.';
+        }
 
         function initGrid() {
         const grid = new Array(numRows).fill(null)
@@ -132,6 +181,7 @@
         };
 
         drawGrid();
+        initRestrictedCheckbox();
     </script>
     <script src="worker.js"></script>
 </body>
